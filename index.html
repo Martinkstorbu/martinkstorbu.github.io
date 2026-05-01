@@ -378,6 +378,17 @@ function renderDash(){
   // Year selector
   const yrSel=`<div class="yr-sel">${yrs.map(y=>`<button class="yr-sel-btn ${y===yr?'active':''}" onclick="state.selectedYear=${y};render()">${y}</button>`).join('')}</div>`;
 
+  function nFmt(v,dec=1){return dec>0?v.toFixed(dec).replace('.',','):Math.round(v).toString()}
+  function eFmt(v){if(v>=1000)return(v/1000).toFixed(1).replace('.',',')+' K';return Math.round(v).toString()}
+  function pFmt(p){if(!p||p<=0)return'—';const m=Math.floor(p),s=Math.round((p-m)*60).toString().padStart(2,'0');return m+':'+s}
+
+  // Trail vs road for selected year
+  const yRoadKm=runs.filter(a=>!isTrail(a)).reduce((s,a)=>s+a.distance/1000,0);
+  const yTrailKm=runs.filter(a=>isTrail(a)).reduce((s,a)=>s+a.distance/1000,0);
+  const yTotKm=yRoadKm+yTrailKm||1;
+  const roadPct=Math.round(yRoadKm/yTotKm*100),trailPct=Math.round(yTrailKm/yTotKm*100);
+  const terrainBar=runs.length?`<div class="chart-card" style="padding:10px 12px;margin-bottom:6px"><div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:6px">Asfalt vs. terreng ${yr}</div><div style="height:14px;border-radius:7px;overflow:hidden;display:flex;margin-bottom:6px"><div style="width:${roadPct}%;background:var(--accent)"></div><div style="width:${trailPct}%;background:var(--strava)"></div></div><div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:var(--accent)">Asfalt ${nFmt(yRoadKm)} km</span><span style="color:var(--strava)">Terreng ${nFmt(yTrailKm)} km</span></div></div>`:'';
+
   // Week section
   let weekSec='';
   if(yr===now.getFullYear()){
@@ -396,9 +407,6 @@ function renderDash(){
       const wNum=Math.ceil((ws2-new Date(ws2.getFullYear(),0,1))/604800000)+1;
       w4.push({km,pace:avgPace,hr:avgHr,elev,label:i===0?'Nå':''+wNum});
     }
-    function nFmt(v,dec=1){return dec>0?v.toFixed(dec).replace('.',','):Math.round(v).toString()}
-    function eFmt(v){if(v>=1000)return(v/1000).toFixed(1).replace('.',',')+' K';return Math.round(v).toString()}
-    function pFmt(p){if(!p||p<=0)return'—';const m=Math.floor(p),s=Math.round((p-m)*60).toString().padStart(2,'0');return m+':'+s}
 
     function miniLine(data,color,label,fmtFn,curVal){
       const max=Math.max(...data,0.001);const min=Math.min(...data);const range=max-min||1;
@@ -418,6 +426,7 @@ function renderDash(){
       <div class="week-box"><div class="week-val">${wPace>0?pFmt(wPace):'—'}</div><div class="week-lbl">snitt /km</div></div>
       <div class="week-box"><div class="week-val">${eFmt(wElev)}</div><div class="week-lbl">stigning</div></div>
     </div>
+    ${terrainBar}
     ${miniLine(kmData,'var(--accent)','Km per uke',v=>nFmt(v),null)}
     ${miniLine(hrData,'#ff7043','Snittpuls',v=>v>0?Math.round(v).toString():'—',null)}
     ${miniLine(elevData,'#7F77DD','Stigning',v=>eFmt(v)+'m',null)}`;
@@ -425,21 +434,14 @@ function renderDash(){
 
   const stravaCta=state.stravaStatus!=='connected'?`<div style="display:flex;align-items:center;gap:10px;padding:14px;background:var(--strava-glow);border:1px solid rgba(255,112,67,.2);border-radius:var(--radius-sm);color:var(--strava);cursor:pointer;font-size:13px;font-weight:600;margin-bottom:12px" onclick="switchTab('settings')">${I.strava} Koble til Strava →</div>`:'';
 
-  // Trail vs road for selected year
-  const yRoad=runs.filter(a=>!isTrail(a)).length;
-  const yTrail=runs.filter(a=>isTrail(a)).length;
-  const yTot=yRoad+yTrail||1;
-  const roadPct=Math.round(yRoad/yTot*100),trailPct=Math.round(yTrail/yTot*100);
-  const terrainBar=runs.length?`<div class="chart-card" style="padding:10px 12px;margin-bottom:8px"><div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:6px">Asfalt vs. terreng ${yr}</div><div style="height:14px;border-radius:7px;overflow:hidden;display:flex;margin-bottom:6px"><div style="width:${roadPct}%;background:var(--accent)"></div><div style="width:${trailPct}%;background:var(--strava)"></div></div><div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:var(--accent)">Asfalt ${roadPct}%</span><span style="color:var(--strava)">Terreng ${trailPct}%</span></div></div>`:'';
-
   return`<div class="dashboard">
     <div class="dash-top"><div><span class="greet-sub">${greet}</span><span class="greet-name">${p.name||'løper'}</span></div>${state.stravaStatus==='connected'?'<span class="badge">Strava</span>':''}</div>
     ${yrSel}${stravaCta}${weekSec}
+    ${yr!==now.getFullYear()?terrainBar:''}
     <div class="yr-card"><div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Totalt ${yr}</div>
       <div class="yr-km">${Math.round(yKm)}</div><div class="yr-km-lbl">km</div>
       <div class="yr-stats"><span class="yr-stat">${yCnt}<span class="yr-stat-lbl">løp</span></span><div class="yr-div"></div><span class="yr-stat">${yRpw}<span class="yr-stat-lbl">løp/uke</span></span><div class="yr-div"></div><span class="yr-stat">${Math.round(yElev)}<span class="yr-stat-lbl">m↑</span></span></div>
     </div>
-    ${terrainBar}
   </div>`;
 }
 
