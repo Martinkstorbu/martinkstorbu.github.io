@@ -425,6 +425,13 @@ function renderDash(){
 
   const stravaCta=state.stravaStatus!=='connected'?`<div style="display:flex;align-items:center;gap:10px;padding:14px;background:var(--strava-glow);border:1px solid rgba(255,112,67,.2);border-radius:var(--radius-sm);color:var(--strava);cursor:pointer;font-size:13px;font-weight:600;margin-bottom:12px" onclick="switchTab('settings')">${I.strava} Koble til Strava →</div>`:'';
 
+  // Trail vs road for selected year
+  const yRoad=runs.filter(a=>!isTrail(a)).length;
+  const yTrail=runs.filter(a=>isTrail(a)).length;
+  const yTot=yRoad+yTrail||1;
+  const roadPct=Math.round(yRoad/yTot*100),trailPct=Math.round(yTrail/yTot*100);
+  const terrainBar=runs.length?`<div class="chart-card" style="padding:10px 12px;margin-bottom:8px"><div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:6px">Asfalt vs. terreng ${yr}</div><div style="height:14px;border-radius:7px;overflow:hidden;display:flex;margin-bottom:6px"><div style="width:${roadPct}%;background:var(--accent)"></div><div style="width:${trailPct}%;background:var(--strava)"></div></div><div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:var(--accent)">Asfalt ${roadPct}%</span><span style="color:var(--strava)">Terreng ${trailPct}%</span></div></div>`:'';
+
   return`<div class="dashboard">
     <div class="dash-top"><div><span class="greet-sub">${greet}</span><span class="greet-name">${p.name||'løper'}</span></div>${state.stravaStatus==='connected'?'<span class="badge">Strava</span>':''}</div>
     ${yrSel}${stravaCta}${weekSec}
@@ -432,6 +439,7 @@ function renderDash(){
       <div class="yr-km">${Math.round(yKm)}</div><div class="yr-km-lbl">km</div>
       <div class="yr-stats"><span class="yr-stat">${yCnt}<span class="yr-stat-lbl">løp</span></span><div class="yr-div"></div><span class="yr-stat">${yRpw}<span class="yr-stat-lbl">løp/uke</span></span><div class="yr-div"></div><span class="yr-stat">${Math.round(yElev)}<span class="yr-stat-lbl">m↑</span></span></div>
     </div>
+    ${terrainBar}
   </div>`;
 }
 
