@@ -309,7 +309,9 @@ function saveShoe(){const f=state.shoeForm;if(!f.name.trim())return;state.shoes.
 
 // ─── Helpers ───
 function timeAgo(d){const s=Math.floor((Date.now()-d)/1000);if(s<60)return'nå';if(s<3600)return`${Math.floor(s/60)}m`;if(s<86400)return`${Math.floor(s/3600)}t`;if(s<604800)return`${Math.floor(s/86400)}d`;return d.toLocaleDateString('no-NO',{day:'numeric',month:'short'})}
-function getRuns(yr){return(state.stravaActivities||[]).filter(a=>(a.type==='Run'||a.type==='TrailRun')&&(!yr||new Date(a.start_date_local).getFullYear()===yr))}
+function isTrail(a){return a.type==='TrailRun'||a.sport_type==='TrailRun'}
+function isRun(a){return a.type==='Run'||a.type==='TrailRun'||a.sport_type==='TrailRun'}
+function getRuns(yr){return(state.stravaActivities||[]).filter(a=>isRun(a)&&(!yr||new Date(a.start_date_local).getFullYear()===yr))}
 function getAllYears(){const yrs=new Set();(state.stravaActivities||[]).forEach(a=>yrs.add(new Date(a.start_date_local).getFullYear()));return[...yrs].sort((a,b)=>b-a)}
 
 // ─── Render ───
@@ -388,9 +390,11 @@ function renderDash(){
       const km=wRuns.reduce((s,a)=>s+a.distance/1000,0);
       const paceRuns=wRuns.filter(a=>a.distance>0);
       const avgPace=paceRuns.length?paceRuns.reduce((s,a)=>s+a.moving_time/60/(a.distance/1000),0)/paceRuns.length:0;
+      const hrRuns=wRuns.filter(a=>a.average_heartrate>0);
+      const avgHr=hrRuns.length?hrRuns.reduce((s,a)=>s+a.average_heartrate,0)/hrRuns.length:0;
       const elev=wRuns.reduce((s,a)=>s+(a.total_elevation_gain||0),0);
       const wNum=Math.ceil((ws2-new Date(ws2.getFullYear(),0,1))/604800000)+1;
-      w4.push({km,pace:avgPace,elev,label:i===0?'Nå':''+wNum});
+      w4.push({km,pace:avgPace,hr:avgHr,elev,label:i===0?'Nå':''+wNum});
     }
     function nFmt(v,dec=1){return dec>0?v.toFixed(dec).replace('.',','):Math.round(v).toString()}
     function eFmt(v){if(v>=1000)return(v/1000).toFixed(1).replace('.',',')+' K';return Math.round(v).toString()}
@@ -404,7 +408,7 @@ function renderDash(){
       return`<div class="chart-card" style="margin-bottom:6px;padding:10px 12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-size:13px;font-weight:700;color:var(--text2)">${label}</span></div><svg viewBox="0 0 280 36" style="width:100%;height:36px"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>${dots}</svg><div style="display:flex;margin-top:4px;border-top:0.5px solid var(--border);padding-top:6px">${tbl}</div></div>`;
     }
     const kmData=w4.map(w=>w.km);
-    const paceData=w4.map(w=>w.pace);
+    const hrData=w4.map(w=>w.hr);
     const elevData=w4.map(w=>w.elev);
 
     weekSec=`<p class="sec-label">Denne uken</p>
@@ -415,7 +419,7 @@ function renderDash(){
       <div class="week-box"><div class="week-val">${eFmt(wElev)}</div><div class="week-lbl">stigning</div></div>
     </div>
     ${miniLine(kmData,'var(--accent)','Km per uke',v=>nFmt(v),null)}
-    ${miniLine(paceData,'#ff7043','Snittempo',v=>pFmt(v),null)}
+    ${miniLine(hrData,'#ff7043','Snittpuls',v=>v>0?Math.round(v).toString():'—',null)}
     ${miniLine(elevData,'#7F77DD','Stigning',v=>eFmt(v)+'m',null)}`;
   }
 
@@ -559,7 +563,7 @@ function renderRecords(back,runs){
 // Shoe stats
 function renderShoeStats(back){
   const shoes=state.shoes;
-  const runs=(state.stravaActivities||[]).filter(a=>a.type==='Run'||a.type==='TrailRun');
+  const runs=(state.stravaActivities||[]).filter(a=>isRun(a));
 
   // Longest total km
   const byKm=shoes.map(s=>({...s,stats:getShoeStats(s.id)})).sort((a,b)=>b.stats.totalKm-a.stats.totalKm);
@@ -614,8 +618,8 @@ function renderElevation(back,runs){
   const mNames=['Jan','Feb','Mar','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Des'];
   const bars=monthly.map((e,i)=>{const h=Math.max(1,e/mMax*100);const past=i<=new Date().getMonth();return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px"><div style="font-size:8px;color:var(--text2)">${e>0?Math.round(e):''}</div><div style="width:100%;height:${h}px;border-radius:4px;background:${past?'var(--accent)':'var(--border)'};opacity:${past?1:0.3}"></div><div style="font-size:9px;color:var(--text2)">${mNames[i]}</div></div>`}).join('');
 
-  const road=runs.filter(a=>a.type==='Run').length;
-  const trail=runs.filter(a=>a.type==='TrailRun').length;
+  const road=runs.filter(a=>!isTrail(a)).length;
+  const trail=runs.filter(a=>isTrail(a)).length;
   const tot=road+trail||1;
 
   return`<div class="detail-page">${back}<h2 class="detail-title">Stigning</h2>
