@@ -12,6 +12,8 @@
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-512.png">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -40,6 +42,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text)}
 .tab svg{width:22px;height:22px}
 .app-content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .page{display:none;min-height:100%}.page.active{display:block}
+.page.map-page-wrap{min-height:0;height:100%}.page.map-page-wrap.active{display:flex}
 
 /* Buttons */
 .btn-primary{padding:12px 24px;border-radius:var(--radius-sm);background:var(--accent);color:#0f1923;font-weight:700;font-size:14px;border:none;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:8px}
@@ -153,6 +156,24 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text)}
 .s-sub{font-size:13px;color:var(--text2)}
 .s-arrow{margin-left:auto;color:var(--text2)}
 .logout-btn{margin-top:20px;width:100%;padding:12px;border-radius:var(--radius-sm);background:transparent;color:var(--danger);font-weight:600;font-size:14px;border:1px solid rgba(239,68,68,.2);cursor:pointer;font-family:inherit}
+
+/* Heatmap */
+.map-page{position:relative;height:100%;display:flex;flex-direction:column}
+.map-container{flex:1;position:relative}
+#heatmap{width:100%;height:100%;z-index:0}
+.map-overlay-top{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-start;z-index:1000;pointer-events:none}
+.map-overlay-top>*{pointer-events:auto}
+.map-title{font-size:18px;font-weight:700;color:#edf2f7;text-shadow:0 1px 4px rgba(0,0,0,0.5)}
+.map-yr-filter{display:flex;gap:0;background:rgba(15,25,35,0.85);border-radius:20px;padding:3px;backdrop-filter:blur(8px)}
+.map-yr-btn{padding:6px 12px;font-size:11px;font-weight:600;border:none;border-radius:16px;background:transparent;color:#7b8fa3;cursor:pointer;font-family:inherit}
+.map-yr-btn.active{background:var(--accent);color:#0f1923}
+.map-overlay-bottom{position:absolute;bottom:12px;left:12px;right:12px;display:flex;gap:6px;z-index:1000}
+.map-stat{flex:1;background:rgba(15,25,35,0.85);backdrop-filter:blur(8px);border-radius:10px;padding:10px;text-align:center}
+.map-stat-v{font-size:16px;font-weight:700;color:#edf2f7;font-family:'Space Mono',monospace}
+.map-stat-l{font-size:9px;color:#7b8fa3;text-transform:uppercase;margin-top:2px}
+.leaflet-control-attribution{display:none!important}
+.leaflet-control-zoom{border:none!important}
+.leaflet-control-zoom a{background:rgba(15,25,35,0.85)!important;color:#7b8fa3!important;border:none!important;backdrop-filter:blur(8px)}
 .reset-btn{margin-top:10px;width:100%;padding:12px;border-radius:var(--radius-sm);background:rgba(239,68,68,.1);color:var(--danger);font-weight:600;font-size:14px;border:1px solid rgba(239,68,68,.2);cursor:pointer;font-family:inherit}
 
 /* Strava setup */
@@ -236,7 +257,7 @@ async function loadFromCloud(uid){
 let state={
   authLoading:true,authMode:'login',authError:'',
   apiKey:LS('apiKey')||'',profile:LS('profile')||{logs:[]},profileDone:LS('profileDone')||false,
-  tab:'home',selectedYear:new Date().getFullYear(),
+  tab:'home',selectedYear:new Date().getFullYear(),mapYear:null,
   stravaCreds:LS('stravaCreds')||{clientId:'',clientSecret:'',refreshToken:''},
   stravaActivities:LS('stravaActivities')||[],stravaStatus:'disconnected',
   shoes:LS('shoes')||[],shoeMap:LS('shoeMap')||{},
@@ -258,6 +279,7 @@ const I={
   user:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
   plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
   camera:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+  map:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>',
   check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
 };
 
@@ -326,15 +348,18 @@ function render(){
   app.innerHTML=`<div class="app-content">
     <div class="page ${state.tab==='home'?'active':''}">${renderDash()}</div>
     <div class="page ${state.tab==='explore'?'active':''}">${state.exploreView?renderExploreDetail():renderExplore()}</div>
+    <div class="page map-page-wrap ${state.tab==='map'?'active':''}">${state.tab==='map'?renderMap():''}</div>
     <div class="page ${state.tab==='runs'?'active':''}">${state.activeActivity?renderActivityDetail():renderRuns()}</div>
     <div class="page ${state.tab==='settings'?'active':''}">${renderSettings()}</div>
   </div>
   <nav class="tab-bar">
-    ${[['home','home','Hjem'],['explore','search','Utforsk'],['runs','list','Økter'],['settings','gear','Innst.']].map(([id,ic,lb])=>`<button class="tab ${state.tab===id?'active':''}" onclick="switchTab('${id}')">${I[ic]}<span>${lb}</span></button>`).join('')}
+    ${[['home','home','Hjem'],['explore','search','Utforsk'],['map','map','Kart'],['runs','list','Økter'],['settings','gear','Innst.']].map(([id,ic,lb])=>`<button class="tab ${state.tab===id?'active':''}" onclick="switchTab('${id}')">${I[ic]}<span>${lb}</span></button>`).join('')}
   </nav>`;
   if(fid){const el=document.getElementById(fid);if(el){el.focus();if(typeof fst==='number'&&el.setSelectionRange)try{el.setSelectionRange(fst,fen)}catch(e){}}}
+  document.querySelector('.app-content').style.overflow=state.tab==='map'?'hidden':'';
+  if(state.tab==='map')setTimeout(initMap,50);
 }
-function switchTab(t){state.tab=t;state.exploreView=null;state.activeActivity=null;render()}
+function switchTab(t){if(t!=='map'&&_map){_map.remove();_map=null;_mapLayers=[]}state.tab=t;state.exploreView=null;state.activeActivity=null;render()}
 
 // ─── Auth ───
 function renderAuth(){
@@ -645,6 +670,95 @@ function renderElevation(back,runs){
 }
 
 // ─── Økter ───
+// ─── Heatmap ───
+function decodePolyline(str){
+  const coords=[];let i=0,lat=0,lng=0;
+  while(i<str.length){
+    let b,shift=0,result=0;
+    do{b=str.charCodeAt(i++)-63;result|=(b&0x1f)<<shift;shift+=5}while(b>=0x20);
+    lat+=(result&1)?~(result>>1):(result>>1);
+    shift=0;result=0;
+    do{b=str.charCodeAt(i++)-63;result|=(b&0x1f)<<shift;shift+=5}while(b>=0x20);
+    lng+=(result&1)?~(result>>1):(result>>1);
+    coords.push([lat/1e5,lng/1e5]);
+  }
+  return coords;
+}
+
+let _map=null,_mapLayers=[];
+
+function renderMap(){
+  const allRuns=getRuns();
+  const yrs=[...new Set(allRuns.map(a=>new Date(a.start_date_local).getFullYear()))].sort((a,b)=>b-a);
+  const yr=state.mapYear;
+  const yrLabel=yr||'Alle';
+  const filtered=yr?allRuns.filter(a=>new Date(a.start_date_local).getFullYear()===yr):allRuns;
+  const withMap=filtered.filter(a=>a.map?.summary_polyline);
+  const totalKm=filtered.reduce((s,a)=>s+a.distance/1000,0);
+
+  return`<div class="map-page">
+    <div class="map-container">
+      <div id="heatmap"></div>
+      <div class="map-overlay-top">
+        <span class="map-title">Varmekart</span>
+        <div class="map-yr-filter">
+          <button class="map-yr-btn ${!yr?'active':''}" onclick="state.mapYear=null;render()">Alle</button>
+          ${yrs.map(y=>`<button class="map-yr-btn ${yr===y?'active':''}" onclick="state.mapYear=${y};render()">${y}</button>`).join('')}
+        </div>
+      </div>
+      <div class="map-overlay-bottom">
+        <div class="map-stat"><div class="map-stat-v">${withMap.length}</div><div class="map-stat-l">Ruter</div></div>
+        <div class="map-stat"><div class="map-stat-v">${Math.round(totalKm)}</div><div class="map-stat-l">Totalt km</div></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function initMap(){
+  const el=document.getElementById('heatmap');
+  if(!el||!el.offsetHeight)return;
+
+  if(_map){_map.remove();_map=null}
+
+  _map=L.map('heatmap',{zoomControl:true,attributionControl:false}).setView([59.9,10.7],12);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+    maxZoom:19,subdomains:'abcd'
+  }).addTo(_map);
+
+  const allRuns=getRuns();
+  const yr=state.mapYear;
+  const filtered=yr?allRuns.filter(a=>new Date(a.start_date_local).getFullYear()===yr):allRuns;
+  const withMap=filtered.filter(a=>a.map?.summary_polyline);
+
+  if(!withMap.length)return;
+
+  // Count segment frequency for heat effect
+  const segCount={};
+  withMap.forEach(a=>{
+    const coords=decodePolyline(a.map.summary_polyline);
+    coords.forEach(c=>{const k=c[0].toFixed(3)+','+c[1].toFixed(3);segCount[k]=(segCount[k]||0)+1});
+  });
+  const maxFreq=Math.max(...Object.values(segCount),1);
+
+  // Draw routes
+  const bounds=[];
+  withMap.forEach(a=>{
+    const coords=decodePolyline(a.map.summary_polyline);
+    if(!coords.length)return;
+    // Calculate route frequency (avg of point frequencies)
+    const avgFreq=coords.reduce((s,c)=>{const k=c[0].toFixed(3)+','+c[1].toFixed(3);return s+(segCount[k]||1)},0)/coords.length;
+    const heat=Math.min(1,avgFreq/maxFreq);
+    const opacity=0.15+heat*0.65;
+    const weight=1.5+heat*3;
+
+    const line=L.polyline(coords,{color:'#00c9a7',weight,opacity,lineCap:'round',lineJoin:'round'}).addTo(_map);
+    _mapLayers.push(line);
+    coords.forEach(c=>bounds.push(c));
+  });
+
+  if(bounds.length)_map.fitBounds(bounds,{padding:[40,40]});
+}
+
 function renderRuns(){
   const runs=getRuns(state.selectedYear);
   const shoes=state.shoes.filter(s=>!s.retired);
