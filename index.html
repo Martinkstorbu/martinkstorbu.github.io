@@ -693,7 +693,7 @@ function renderMap(){
   const yr=state.mapYear;
   const yrLabel=yr||'Alle';
   const filtered=yr?allRuns.filter(a=>new Date(a.start_date_local).getFullYear()===yr):allRuns;
-  const withMap=filtered.filter(a=>a.map?.summary_polyline);
+  const withMap=filtered.filter(a=>a.map&&(a.map.summary_polyline||a.map.polyline));
   const totalKm=filtered.reduce((s,a)=>s+a.distance/1000,0);
 
   return`<div class="map-page">
@@ -718,34 +718,43 @@ function initMap(){
   const el=document.getElementById('heatmap');
   if(!el||!el.offsetHeight)return;
 
-  if(_map){_map.remove();_map=null}
+  if(_map){_map.remove();_map=null;_mapLayers=[]}
 
   _map=L.map('heatmap',{zoomControl:true,attributionControl:false}).setView([59.9,10.7],12);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',{
     maxZoom:19,subdomains:'abcd'
   }).addTo(_map);
+
+  // Force Leaflet to recalculate container size
+  setTimeout(()=>{if(_map)_map.invalidateSize()},200);
 
   const allRuns=getRuns();
   const yr=state.mapYear;
   const filtered=yr?allRuns.filter(a=>new Date(a.start_date_local).getFullYear()===yr):allRuns;
-  const withMap=filtered.filter(a=>a.map?.summary_polyline);
+  const withMap=filtered.filter(a=>{
+    if(!a.map)return false;
+    const pl=a.map.summary_polyline||a.map.polyline;
+    return pl&&pl.length>0;
+  });
 
-  if(!withMap.length)return;
+  if(!withMap.length){console.log('No routes with polyline data');return}
 
-  // Count segment frequency for heat effect
+  // Count point frequency for heat effect
   const segCount={};
   withMap.forEach(a=>{
-    const coords=decodePolyline(a.map.summary_polyline);
+    const pl=a.map.summary_polyline||a.map.polyline;
+    const coords=decodePolyline(pl);
     coords.forEach(c=>{const k=c[0].toFixed(3)+','+c[1].toFixed(3);segCount[k]=(segCount[k]||0)+1});
   });
   const maxFreq=Math.max(...Object.values(segCount),1);
 
   // Draw routes
-  const bounds=[];
+  const allCoords=[];
+  _mapLayers=[];
   withMap.forEach(a=>{
-    const coords=decodePolyline(a.map.summary_polyline);
+    const pl=a.map.summary_polyline||a.map.polyline;
+    const coords=decodePolyline(pl);
     if(!coords.length)return;
-    // Calculate route frequency (avg of point frequencies)
     const avgFreq=coords.reduce((s,c)=>{const k=c[0].toFixed(3)+','+c[1].toFixed(3);return s+(segCount[k]||1)},0)/coords.length;
     const heat=Math.min(1,avgFreq/maxFreq);
     const opacity=0.15+heat*0.65;
@@ -753,10 +762,12 @@ function initMap(){
 
     const line=L.polyline(coords,{color:'#00c9a7',weight,opacity,lineCap:'round',lineJoin:'round'}).addTo(_map);
     _mapLayers.push(line);
-    coords.forEach(c=>bounds.push(c));
+    coords.forEach(c=>allCoords.push(c));
   });
 
-  if(bounds.length)_map.fitBounds(bounds,{padding:[40,40]});
+  if(allCoords.length){
+    _map.fitBounds(L.latLngBounds(allCoords),{padding:[40,40]});
+  }
 }
 
 function renderRuns(){
