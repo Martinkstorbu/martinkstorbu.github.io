@@ -42,7 +42,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text)}
 .tab svg{width:22px;height:22px}
 .app-content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .page{display:none;min-height:100%}.page.active{display:block}
-.page.map-page-wrap{min-height:0;height:100%}.page.map-page-wrap.active{display:flex}
+.page.map-page-wrap{min-height:0;height:100%;position:relative}.page.map-page-wrap.active{display:block}
 
 /* Buttons */
 .btn-primary{padding:12px 24px;border-radius:var(--radius-sm);background:var(--accent);color:#0f1923;font-weight:700;font-size:14px;border:none;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:8px}
@@ -158,9 +158,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text)}
 .logout-btn{margin-top:20px;width:100%;padding:12px;border-radius:var(--radius-sm);background:transparent;color:var(--danger);font-weight:600;font-size:14px;border:1px solid rgba(239,68,68,.2);cursor:pointer;font-family:inherit}
 
 /* Heatmap */
-.map-page{position:relative;height:100%;display:flex;flex-direction:column}
-.map-container{flex:1;position:relative}
-#heatmap{width:100%;height:calc(100vh - 70px);z-index:0}
+.map-page{position:absolute;top:0;left:0;right:0;bottom:0}
+#heatmap{position:absolute;top:0;left:0;right:0;bottom:0;z-index:0}
 .map-overlay-top{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-start;z-index:1000;pointer-events:none}
 .map-overlay-top>*{pointer-events:auto}
 .map-title{font-size:18px;font-weight:700;color:#edf2f7;text-shadow:0 1px 4px rgba(0,0,0,0.5)}
@@ -363,6 +362,7 @@ function render(){
   </nav>`;
   if(fid){const el=document.getElementById(fid);if(el){el.focus();if(typeof fst==='number'&&el.setSelectionRange)try{el.setSelectionRange(fst,fen)}catch(e){}}}
   document.querySelector('.app-content').style.overflow=state.tab==='map'?'hidden':'';
+  document.querySelector('.app-content').style.height=state.tab==='map'?'calc(100vh - 56px)':'';
   if(state.tab==='map')setTimeout(initMap,50);
 }
 function switchTab(t){if(t!=='map'&&_map){_map.remove();_map=null;_mapLayers=[]}state.tab=t;state.exploreView=null;state.activeActivity=null;render()}
@@ -703,19 +703,17 @@ function renderMap(){
   const totalKm=filtered.reduce((s,a)=>s+a.distance/1000,0);
 
   return`<div class="map-page">
-    <div class="map-container">
-      <div id="heatmap"></div>
-      <div class="map-overlay-top">
-        <span class="map-title">Varmekart</span>
-        <div class="map-yr-filter">
-          <button class="map-yr-btn ${!yr?'active':''}" onclick="state.mapYear=null;render()">Alle</button>
-          ${yrs.map(y=>`<button class="map-yr-btn ${yr===y?'active':''}" onclick="state.mapYear=${y};render()">${y}</button>`).join('')}
-        </div>
+    <div id="heatmap"></div>
+    <div class="map-overlay-top">
+      <span class="map-title">Varmekart</span>
+      <div class="map-yr-filter">
+        <button class="map-yr-btn ${!yr?'active':''}" onclick="state.mapYear=null;render()">Alle</button>
+        ${yrs.map(y=>`<button class="map-yr-btn ${yr===y?'active':''}" onclick="state.mapYear=${y};render()">${y}</button>`).join('')}
       </div>
-      <div class="map-overlay-bottom">
-        <div class="map-stat"><div class="map-stat-v">${withMap.length}</div><div class="map-stat-l">Ruter</div></div>
-        <div class="map-stat"><div class="map-stat-v">${Math.round(totalKm)}</div><div class="map-stat-l">Totalt km</div></div>
-      </div>
+    </div>
+    <div class="map-overlay-bottom">
+      <div class="map-stat"><div class="map-stat-v">${withMap.length}</div><div class="map-stat-l">Ruter</div></div>
+      <div class="map-stat"><div class="map-stat-v">${Math.round(totalKm)}</div><div class="map-stat-l">Totalt km</div></div>
     </div>
   </div>`;
 }
@@ -723,6 +721,7 @@ function renderMap(){
 function initMap(){
   const el=document.getElementById('heatmap');
   if(!el)return;
+  console.log('Map: container size='+el.offsetWidth+'x'+el.offsetHeight);
 
   if(_map){_map.remove();_map=null;_mapLayers=[]}
 
