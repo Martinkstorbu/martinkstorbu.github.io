@@ -160,7 +160,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text)}
 /* Heatmap */
 .map-page{position:relative;height:100%;display:flex;flex-direction:column}
 .map-container{flex:1;position:relative}
-#heatmap{width:100%;height:100%;z-index:0}
+#heatmap{width:100%;height:calc(100vh - 70px);z-index:0}
 .map-overlay-top{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-start;z-index:1000;pointer-events:none}
 .map-overlay-top>*{pointer-events:auto}
 .map-title{font-size:18px;font-weight:700;color:#edf2f7;text-shadow:0 1px 4px rgba(0,0,0,0.5)}
@@ -722,7 +722,7 @@ function renderMap(){
 
 function initMap(){
   const el=document.getElementById('heatmap');
-  if(!el||!el.offsetHeight)return;
+  if(!el)return;
 
   if(_map){_map.remove();_map=null;_mapLayers=[]}
 
@@ -731,8 +731,8 @@ function initMap(){
     maxZoom:19,subdomains:'abcd'
   }).addTo(_map);
 
-  // Force Leaflet to recalculate container size
-  setTimeout(()=>{if(_map)_map.invalidateSize()},200);
+  setTimeout(()=>{if(_map)_map.invalidateSize()},100);
+  setTimeout(()=>{if(_map)_map.invalidateSize()},500);
 
   const allRuns=getRuns();
   const yr=state.mapYear;
@@ -743,7 +743,11 @@ function initMap(){
     return pl&&pl.length>0;
   });
 
-  if(!withMap.length){console.log('No routes with polyline data');return}
+  console.log('Map: total='+filtered.length+', withPolyline='+withMap.length);
+  if(filtered.length>0&&!filtered[0].map)console.log('Map: first activity has no map field');
+  if(filtered.length>0&&filtered[0].map)console.log('Map: first activity map=',JSON.stringify(filtered[0].map).substring(0,100));
+
+  if(!withMap.length)return;
 
   // Count point frequency for heat effect
   const segCount={};
