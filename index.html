@@ -42,7 +42,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text)}
 .tab svg{width:22px;height:22px}
 .app-content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .page{display:none;min-height:100%}.page.active{display:block}
-.page.map-page-wrap{min-height:0;height:100%;position:relative}.page.map-page-wrap.active{display:block}
 
 /* Buttons */
 .btn-primary{padding:12px 24px;border-radius:var(--radius-sm);background:var(--accent);color:#0f1923;font-weight:700;font-size:14px;border:none;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:8px}
@@ -158,8 +157,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text)}
 .logout-btn{margin-top:20px;width:100%;padding:12px;border-radius:var(--radius-sm);background:transparent;color:var(--danger);font-weight:600;font-size:14px;border:1px solid rgba(239,68,68,.2);cursor:pointer;font-family:inherit}
 
 /* Heatmap */
-.map-page{position:absolute;top:0;left:0;right:0;bottom:0}
-#heatmap{position:absolute;top:0;left:0;right:0;bottom:0;z-index:0}
+.map-page{position:relative;width:100%}
+#heatmap{width:100%;z-index:0}
 .map-overlay-top{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-start;z-index:1000;pointer-events:none}
 .map-overlay-top>*{pointer-events:auto}
 .map-title{font-size:18px;font-weight:700;color:#edf2f7;text-shadow:0 1px 4px rgba(0,0,0,0.5)}
@@ -353,7 +352,7 @@ function render(){
   app.innerHTML=`<div class="app-content">
     <div class="page ${state.tab==='home'?'active':''}">${renderDash()}</div>
     <div class="page ${state.tab==='explore'?'active':''}">${state.exploreView?renderExploreDetail():renderExplore()}</div>
-    <div class="page map-page-wrap ${state.tab==='map'?'active':''}">${state.tab==='map'?renderMap():''}</div>
+    <div class="page ${state.tab==='map'?'active':''}">${state.tab==='map'?renderMap():''}</div>
     <div class="page ${state.tab==='runs'?'active':''}">${state.activeActivity?renderActivityDetail():renderRuns()}</div>
     <div class="page ${state.tab==='settings'?'active':''}">${renderSettings()}</div>
   </div>
@@ -362,8 +361,14 @@ function render(){
   </nav>`;
   if(fid){const el=document.getElementById(fid);if(el){el.focus();if(typeof fst==='number'&&el.setSelectionRange)try{el.setSelectionRange(fst,fen)}catch(e){}}}
   document.querySelector('.app-content').style.overflow=state.tab==='map'?'hidden':'';
-  document.querySelector('.app-content').style.height=state.tab==='map'?'calc(100vh - 56px)':'';
-  if(state.tab==='map')setTimeout(initMap,50);
+  if(state.tab==='map'){
+    const ac=document.querySelector('.app-content');
+    const tb=document.querySelector('.tab-bar');
+    if(ac&&tb)ac.style.height=(window.innerHeight-tb.offsetHeight)+'px';
+    setTimeout(initMap,100);
+  }else{
+    document.querySelector('.app-content').style.height='';
+  }
 }
 function switchTab(t){if(t!=='map'&&_map){_map.remove();_map=null;_mapLayers=[]}state.tab=t;state.exploreView=null;state.activeActivity=null;render()}
 
@@ -721,11 +726,16 @@ function renderMap(){
 function initMap(){
   const el=document.getElementById('heatmap');
   if(!el)return;
-  console.log('Map: container size='+el.offsetWidth+'x'+el.offsetHeight);
+  // Force explicit height
+  const tabBar=document.querySelector('.tab-bar');
+  const h=window.innerHeight-(tabBar?tabBar.offsetHeight:56);
+  el.style.height=h+'px';
+  el.parentElement.style.height=h+'px';
+  console.log('Map: forced height='+h+'px');
 
   if(_map){_map.remove();_map=null;_mapLayers=[]}
 
-  _map=L.map('heatmap',{zoomControl:true,attributionControl:false}).setView([59.9,10.7],12);
+  _map=L.map('heatmap',{zoomControl:true,attributionControl:false}).setView([59.744,10.204],13);
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',{
     maxZoom:19,subdomains:'abcd'
   }).addTo(_map);
@@ -779,10 +789,6 @@ function initMap(){
   });
 
   console.log('Map: drew '+_mapLayers.length+' routes, '+allCoords.length+' points');
-
-  if(allCoords.length){
-    _map.fitBounds(L.latLngBounds(allCoords),{padding:[40,40]});
-  }
 }
 
 function renderRuns(){
