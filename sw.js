@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lopetrener-v1';
+const CACHE_NAME = 'lopetrener-v2';
 const URLS_TO_CACHE = [
   '/',
   '/index.html',
@@ -23,10 +23,10 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Network first, fall back to cache
+  if (!e.request.url.startsWith('http')) return;
+
   e.respondWith(
     fetch(e.request).then(res => {
-      // Cache successful responses
       if (res.ok && e.request.method === 'GET') {
         const clone = res.clone();
         caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
