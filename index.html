@@ -749,14 +749,18 @@ function initMap(){
 
   if(!withMap.length)return;
 
+  console.log('Map: building heatmap...');
+
   // Count point frequency for heat effect
   const segCount={};
+  let maxFreq=1;
   withMap.forEach(a=>{
     const pl=a.map.summary_polyline||a.map.polyline;
     const coords=decodePolyline(pl);
-    coords.forEach(c=>{const k=c[0].toFixed(3)+','+c[1].toFixed(3);segCount[k]=(segCount[k]||0)+1});
+    coords.forEach(c=>{const k=c[0].toFixed(3)+','+c[1].toFixed(3);segCount[k]=(segCount[k]||0)+1;if(segCount[k]>maxFreq)maxFreq=segCount[k]});
   });
-  const maxFreq=Math.max(...Object.values(segCount),1);
+
+  console.log('Map: segments='+Object.keys(segCount).length+', maxFreq='+maxFreq);
 
   // Draw routes
   const allCoords=[];
@@ -774,6 +778,8 @@ function initMap(){
     _mapLayers.push(line);
     coords.forEach(c=>allCoords.push(c));
   });
+
+  console.log('Map: drew '+_mapLayers.length+' routes, '+allCoords.length+' points');
 
   if(allCoords.length){
     _map.fitBounds(L.latLngBounds(allCoords),{padding:[40,40]});
