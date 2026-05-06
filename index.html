@@ -736,8 +736,8 @@ function initMap(){
   if(_map){_map.remove();_map=null;_mapLayers=[]}
 
   _map=L.map('heatmap',{zoomControl:true,attributionControl:false}).setView([59.744,10.204],13);
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
-    maxZoom:19
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',{
+    maxZoom:19,subdomains:'abcd'
   }).addTo(_map);
 
   setTimeout(()=>{if(_map)_map.invalidateSize()},100);
@@ -783,7 +783,7 @@ function initMap(){
     const opacity=0.3+heat*0.6;
     const weight=2+heat*3.5;
 
-    const line=L.polyline(coords,{color:'#00897b',weight,opacity,lineCap:'round',lineJoin:'round'}).addTo(_map);
+    const line=L.polyline(coords,{color:'#00c9a7',weight,opacity,lineCap:'round',lineJoin:'round'}).addTo(_map);
     _mapLayers.push(line);
     coords.forEach(c=>allCoords.push(c));
   });
